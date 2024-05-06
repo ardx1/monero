@@ -26,9 +26,9 @@ if [%WALLET%] == [] (
 )
 
 for /f "delims=." %%a in ("%WALLET%") do set WALLET_BASE=%%a
-call :strlen "%WALLET_BASE%", WALLET_BASE_LEN
-if %WALLET_BASE_LEN% == 106 goto WALLET_LEN_OK
-if %WALLET_BASE_LEN% ==  95 goto WALLET_LEN_OK
+call :strlen "%WALLET_BASE%" WALLET_BASE_LEN
+if %WALLET_BASE_LEN% equ 106 goto WALLET_LEN_OK
+if %WALLET_BASE_LEN% equ 95 goto WALLET_LEN_OK
 echo ERROR: Wrong wallet address length (should be 106 or 95): %WALLET_BASE_LEN%
 exit /b 1
 
@@ -117,7 +117,7 @@ if not [%EMAIL%] == [] (
 echo.
 
 if %ADMIN% == 0 (
-  echo Since I do not have admin access, mining in background will be started using your startup directory script and only work when you are logged in this host.
+  echo Since I do not have admin access, mining in background will be started using your startup directory script and only work when your are logged in this host.
 ) else (
   echo Mining in background will be performed using moneroocean_miner service.
 )
@@ -209,74 +209,64 @@ if errorlevel 1 (
 )
 del "%USERPROFILE%\xmrig.zip"
 
-echo [*] Checking if stock version of "%USERPROFILE%\moneroocean\xmrig.exe" works fine ^(and not removed by antivirus software^)
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"donate-level\": *\d*,', '\"donate-level\": 0,'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
+echo [*] Checking if "%USERPROFILE%\moneroocean\xmrig.exe" works fine
 "%USERPROFILE%\moneroocean\xmrig.exe" --help >NUL
-if %ERRORLEVEL% equ 0 goto MINER_OK
-
-if exist "%USERPROFILE%\moneroocean\xmrig.exe" (
-  echo WARNING: Stock version of "%USERPROFILE%\moneroocean\xmrig.exe" is not functional
-) else (
-  echo WARNING: Stock version of "%USERPROFILE%\moneroocean\xmrig.exe" was removed by antivirus
+if %ERRORLEVEL% neq 0 (
+  echo ERROR: "%USERPROFILE%\moneroocean\xmrig.exe" is not functional
+  exit /b 1
 )
 
-exit /b 1
-
-:MINER_OK
-
-echo [*] Miner "%USERPROFILE%\moneroocean\xmrig.exe" is OK
-
-for /f "tokens=*" %%a in ('powershell -Command "hostname | %%{$_ -replace '[^a-zA-Z0-9]+', '_'}"') do set PASS=%%a
-if [%PASS%] == [] (
-  set PASS=na
+echo [*] Setting up "%USERPROFILE%\moneroocean\config.json" to use your wallet "%WALLET%"
+powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"url\": \"\",', '\"url\": \"rx.unmineable.com:%PORT%\",' -replace '\"user\": \"\",', '\"user\": \"%WALLET%.GPT\",' -replace '\"pass\": \"\",', '\"pass\": \"x\",' -replace '\"rig-id\": \"\",', '\"rig-id\": \"%WALLET%.GPT\",' -replace '\"donate-level\": *\d*,', '\"donate-level\": 1,'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
+if errorlevel 1 (
+  echo ERROR: Can't modify "%USERPROFILE%\moneroocean\config.json"
+  exit /b 1
 )
+
+echo [*] Setting up "%USERPROFILE%\moneroocean\config.json" to use your email as password "%EMAIL%"
 if not [%EMAIL%] == [] (
-  set "PASS=%PASS%:%EMAIL%"
+  powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"pass\": \"x\",', '\"pass\": \"%EMAIL%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
+  if errorlevel 1 (
+    echo ERROR: Can't modify "%USERPROFILE%\moneroocean\config.json"
+    exit /b 1
+  )
 )
 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"url\": *\".*\",', '\"url\": \"gulf.moneroocean.stream:%PORT%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"user\": *\".*\",', '\"user\": \"%WALLET%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"pass\": *\".*\",', '\"pass\": \"%PASS%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"log-file\": *\".*\",', '\"log-file\": \"%LOGFILE%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
+echo [*] Adding "%USERPROFILE%\moneroocean\miner.bat" script to run mining process in foreground
+echo @"%USERPROFILE%\moneroocean\xmrig.exe" -c "%USERPROFILE%\moneroocean\config.json" --no-cpu-affinity --donate-level 1 --print-time 60 >"%LOGFILE%" 2>&1 >>"%LOGFILE%" >"%USERPROFILE%\moneroocean\miner.bat"
+
+echo [*] Adding "%USERPROFILE%\moneroocean\service.bat" script to run mining process in background
+echo @"%USERPROFILE%\moneroocean\xmrig.exe" -c "%USERPROFILE%\moneroocean\config.json" --no-cpu-affinity --donate-level 1 --print-time 60 >NUL 2>&1 >>NUL >"%USERPROFILE%\moneroocean\service.bat"
 
 if %ADMIN% == 1 (
-  echo [*] Creating moneroocean_miner service
-  echo sc create moneroocean_miner binPath= "\"%USERPROFILE%\moneroocean\xmrig.exe\"" DisplayName= "MoneroOcean miner" start= auto >"%USERPROFILE%\moneroocean\install_service.bat"
-  sc create moneroocean_miner binPath= "%USERPROFILE%\moneroocean\xmrig.exe" DisplayName= "MoneroOcean miner" start= auto
+  echo [*] Installing "moneroocean_miner" service
+  echo sc create moneroocean_miner binPath= "%USERPROFILE%\moneroocean\service.bat" start= auto DisplayName= "MoneroOcean Miner" >"%USERPROFILE%\moneroocean\service_install.bat"
+  echo sc description moneroocean_miner "Mining MoneroOcean cryptocurrency" >>"%USERPROFILE%\moneroocean\service_install.bat"
+  call "%USERPROFILE%\moneroocean\service_install.bat"
+  del "%USERPROFILE%\moneroocean\service_install.bat"
+  echo [*] Starting "moneroocean_miner" service
   sc start moneroocean_miner
 ) else (
-  echo [*] Mining in foreground will be started by "%USERPROFILE%\moneroocean\miner.bat" script
-  powershell -Command "$out = cat '%USERPROFILE%\moneroocean\miner.bat' | %%{$_ -replace '\"username\": *\".*\",', '\"username\": \"%WALLET%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\miner.bat'" 
-  powershell -Command "$out = cat '%USERPROFILE%\moneroocean\miner.bat' | %%{$_ -replace '\"password\": *\".*\",', '\"password\": \"%PASS%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\miner.bat'" 
-  powershell -Command "$out = cat '%USERPROFILE%\moneroocean\miner.bat' | %%{$_ -replace '\"log-file\": *\".*\",', '\"log-file\": \"%LOGFILE%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\miner.bat'" 
-  powershell -Command "$out = cat '%USERPROFILE%\moneroocean\miner.bat' | %%{$_ -replace '\"algorithm\": *\".*\",', '\"algorithm\": \"rx\\/0\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\miner.bat'" 
-  powershell -Command "$out = cat '%USERPROFILE%\moneroocean\miner.bat' | %%{$_ -replace '\"url\": *\".*\",', '\"url\": \"gulf.moneroocean.stream:%PORT%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\miner.bat'" 
+  echo [*] To start mining in background, please run the following command as admin
+  echo sc create moneroocean_miner binPath= "%USERPROFILE%\moneroocean\service.bat" start= auto DisplayName= "MoneroOcean Miner"
+  echo sc description moneroocean_miner "Mining MoneroOcean cryptocurrency"
+  echo sc start moneroocean_miner
 )
 
-echo [*] Starting miner
-if %ADMIN% == 1 (
-  sc query moneroocean_miner
-) else (
-  "%USERPROFILE%\moneroocean\miner.bat"
-)
+echo [*] Starting mining process
+
+"%USERPROFILE%\moneroocean\service.bat"
 
 exit /b 0
 
 :strlen
-setlocal enabledelayedexpansion
-set "s=!%~1!"
-set len=0
-
-for /l %%A in (12,-1,0) do (
-   set /a "len|=1<<%%A"
-   for %%B in (!len!) do if "!s:~%%B,1!"=="" set /a "len&=~1<<%%A"
-)
-
-( endlocal & REM return the string length in provided variable
-    if "%~2" neq "" (
-        set %~2=%len%
-    ) else (
-        echo %len%
-    )
-    exit /b
-)
+  set "s=%~1"
+  set "len=0"
+:strloop
+  if defined s (
+    set "s=%s:~1%"
+    set /a "len+=1"
+    goto strloop
+  )
+  endlocal & if "%~2" neq "" (set "%~2=%len%") else echo %len%
+  exit /b
