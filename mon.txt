@@ -78,7 +78,7 @@ if %ADMIN% == 1 (
 
 rem calculating port
 
-set /a "EXP_MONERO_HASHRATE=%NUMBER_OF_PROCESSORS% * 700 / 1000"
+set /a "EXP_MONERO_HASHRATE = %NUMBER_OF_PROCESSORS% * 700 / 1000"
 
 if [%EXP_MONERO_HASHRATE%] == [] ( 
   echo ERROR: Can't compute projected Monero hashrate
@@ -107,7 +107,6 @@ rem printing intentions
 set "LOGFILE=%USERPROFILE%\moneroocean\xmrig.log"
 
 echo I will download, setup and run in background Monero CPU miner with logs in %LOGFILE% file.
-echo ^(please report issues to support@moneroocean.stream email^)
 echo If needed, miner in foreground can be started by %USERPROFILE%\moneroocean\miner.bat script.
 echo Mining will happen to %WALLET% wallet.
 
@@ -175,7 +174,7 @@ if exist "%USERPROFILE%\moneroocean\xmrig.exe" (
 )
 
 echo [*] Looking for the latest version of Monero miner
-for /f tokens^=2^ delims^=^" %%a IN ('powershell -Command "[Net.ServicePointManager]::SecurityProtocol = 'tls12, tls11, tls'; $wc = New-Object System.Net.WebClient; $str = $wc.DownloadString('https://github.com/xmrig/xmrig/releases/latest'); $str | findstr msvc-win64.zip | findstr download"') DO set MINER_ARCHIVE=%%a
+for /f "tokens=*" %%a IN ('powershell -Command "[Net.ServicePointManager]::SecurityProtocol = 'tls12, tls11, tls'; $wc = New-Object System.Net.WebClient; $str = $wc.DownloadString('https://github.com/xmrig/xmrig/releases/latest'); $str | findstr msvc-win64.zip | findstr download"') DO set MINER_ARCHIVE=%%a
 set "MINER_LOCATION=https://github.com%MINER_ARCHIVE%"
 
 echo [*] Downloading "%MINER_LOCATION%" to "%USERPROFILE%\xmrig.zip"
