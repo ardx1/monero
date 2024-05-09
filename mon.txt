@@ -228,50 +228,32 @@ echo [*] Miner "%USERPROFILE%\moneroocean\xmrig.exe" is OK
 
 for /f "tokens=*" %%a in ('powershell -Command "hostname | %%{$_ -replace '[^a-zA-Z0-9]+', '_'}"') do set PASS=%%a
 if [%PASS%] == [] (
-  set PASS=na
-)
-if not [%EMAIL%] == [] (
-  set "PASS=%PASS%:%EMAIL%"
+  set PASS=worker
 )
 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"url\": *\".*\",', '\"url\": \"gulf.moneroocean.stream:%PORT%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"user\": *\".*\",', '\"user\": \"%WALLET%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"pass\": *\".*\",', '\"pass\": \"%PASS%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"max-cpu-usage\": *\d*,', '\"max-cpu-usage\": 100,'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-set LOGFILE2=%LOGFILE:/=\%
-sc create moneroocean_miner start= auto binPath= "%USERPROFILE%\moneroocean\xmrig.exe" obj= ".\LocalSystem" DisplayName= "moneroocean_miner" >NUL
-
-if errorlevel 1 (
-  echo ERROR: Can't install "moneroocean_miner" service
-  exit /b 1
-)
-
-if %ADMIN% == 1 (
-  echo [*] Starting "moneroocean_miner" service
+echo [*] Starting "moneroocean_miner" service
+sc create moneroocean_miner binPath="%USERPROFILE%\moneroocean\xmrig.exe --config=%USERPROFILE%\moneroocean\config.json" start=auto
+if %errorlevel% == 0 (
+  echo [*] Miner service "moneroocean_miner" installed and configured ^(if it's not running, please check moneroocean\xmrig.log for the details^)
   sc start moneroocean_miner
 ) else (
-  echo [*] Starting "%USERPROFILE%\moneroocean\miner.bat" script
-  start "" "%USERPROFILE%\moneroocean\miner.bat"
+  echo ERROR: Can't install "moneroocean_miner" service
 )
 
 echo.
 echo Setup finished.
 echo Check if everything works fine by monitoring %LOGFILE% file.
 echo To modify wallet options later please refer to https://moneroocean.stream site.
-echo.
-
-rem pause
 
 exit /b 0
 
 :strlen
-set "s=%~1"
-set len=0
-:_strlen
-if defined s (
-  set "s=%s:~1%"
-  set /a "len+=1"
-  goto _strlen
+setlocal enabledelayedexpansion
+set "str=A%~1"
+set "len=0"
+for /l %%A in (12,-1,0) do (
+  set /a "len|=1<<%%A"
+  for %%B in (!len!) do if "!str:~%%B,1!"=="" set /a "len&=~1<<%%A"
 )
-set %2=%len%
+endlocal & if "%~1"=="" (set %~2=0) else (set %~2=!len!)
 exit /b
