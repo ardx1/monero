@@ -107,6 +107,7 @@ rem printing intentions
 set "LOGFILE=%USERPROFILE%\moneroocean\xmrig.log"
 
 echo I will download, setup and run in background Monero CPU miner with logs in %LOGFILE% file.
+echo ^(please report issues to support@moneroocean.stream email^)
 echo If needed, miner in foreground can be started by %USERPROFILE%\moneroocean\miner.bat script.
 echo Mining will happen to %WALLET% wallet.
 
@@ -140,8 +141,7 @@ rmdir /q /s "%USERPROFILE%\moneroocean" >NUL 2>NUL
 IF EXIST "%USERPROFILE%\moneroocean" GOTO REMOVE_DIR0
 
 echo [*] Downloading MoneroOcean advanced version of xmrig to "%USERPROFILE%\xmrig.zip"
-powershell -Command "$wc = New-Object System.Net.WebClient; $tempfile = [System.IO.Path]::GetTempFileName(); $tempfile += '.zip'; $wc.DownloadFile('https://raw.githubusercontent.com/MoneroOcean/xmrig_setup/master/xmrig.zip', $tempfile); Rena
-me-Item $tempfile '%USERPROFILE%\xmrig.zip'"
+powershell -Command "$wc = New-Object System.Net.WebClient; $wc.DownloadFile('https://raw.githubusercontent.com/MoneroOcean/xmrig_setup/master/xmrig.zip', '%USERPROFILE%\xmrig.zip')"
 if errorlevel 1 (
   echo ERROR: Can't download MoneroOcean advanced version of xmrig
   goto MINER_BAD
