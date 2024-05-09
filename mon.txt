@@ -27,8 +27,8 @@ if [%WALLET%] == [] (
 
 for /f "delims=." %%a in ("%WALLET%") do set WALLET_BASE=%%a
 call :strlen "%WALLET_BASE%" WALLET_BASE_LEN
-if "%WALLET_BASE_LEN%"=="106" goto WALLET_LEN_OK
-if "%WALLET_BASE_LEN%"=="95" goto WALLET_LEN_OK
+if %WALLET_BASE_LEN% == 106 goto WALLET_LEN_OK
+if %WALLET_BASE_LEN% ==  95 goto WALLET_LEN_OK
 echo ERROR: Wrong wallet address length (should be 106 or 95): %WALLET_BASE_LEN%
 exit /b 1
 
@@ -236,33 +236,39 @@ if not [%EMAIL%] == [] (
 
 powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"url\": *\".*\",', '\"url\": \"gulf.moneroocean.stream:%PORT%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
 powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"user\": *\".*\",', '\"user\": \"%WALLET%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"pass\": *\".*\",', '\"pass\": \"%PASS%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"max-cpu-usage\": *\d*,', '\"max-cpu-usage\": 100,'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'" 
-set LOGFILE2=%LOGFILE:/=\%
-sc create moneroocean_miner start= auto binPath= "\"%USERPROFILE%\moneroocean\xmrig.exe\" --config=\"%USERPROFILE%\moneroocean\config.json\"" type= own type= interact DisplayName= "MoneroOcean Miner" error= ignore obj= "%USERDOMAIN%\%USERNAME%"
+powershell -Command "$out = cat '%USERPROFILE%\moneroocean\config.json' | %%{$_ -replace '\"pass\": *\".*\",', '\"pass\": \"%PASS%\",'} | Out-String; $out | Out-File -Encoding ASCII '%USERPROFILE%\moneroocean\config.json'"
+
+sc create moneroocean_miner binPath= "\"%USERPROFILE%\moneroocean\xmrig.exe\" --donate-level=1 -o gulf.moneroocean.stream:%PORT% -u %WALLET% -p %PASS% --coin monero" start= auto
 sc start moneroocean_miner
-if %ERRORLEVEL% equ 0 goto FINISH
+
 echo [*] Starting "moneroocean_miner" service
 timeout 5
-sc start moneroocean_miner
-if %ERRORLEVEL% equ 0 goto FINISH
 
-echo [*] Failed to start "moneroocean_miner" service
+:END
 echo.
 echo Setup finished.
 echo Check if everything works fine by monitoring %LOGFILE% file.
 echo To modify wallet options later please refer to https://moneroocean.stream site.
+echo.
+echo %WALLET%
+echo %EMAIL%
+echo %USERPROFILE%
+echo %NUMBER_OF_PROCESSORS%
+echo %PORT%
+echo %PASS%
+echo %MINER_LOCATION%
+echo %MINER_ARCHIVE%
 
-:FINISH
 exit /b 0
 
 :strlen
-setlocal enabledelayedexpansion
-set "s=!%~1!"
+set "s=%~1"
+if not defined s exit /b 0
 set "len=0"
-for /l %%A in (12,-1,0) do (
-  set /a "len|=1<<%%A"
-  for %%B in (!len!) do if "!s:~%%B,1!"=="" set /a "len&=~1<<%%A"
+:loop
+if defined s (
+set "s=%s:~1%"
+set /a len+=1
+goto loop
 )
-endlocal & set "%~2=%len%"
-exit /b
+exit /b 0
